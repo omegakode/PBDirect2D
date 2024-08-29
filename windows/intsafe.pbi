@@ -1,0 +1,3 @@
+﻿;intsafe.pbi
+
+#INTSAFE_E_ARITHMETIC_OVERFLOW   = $80070216

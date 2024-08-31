@@ -11,7 +11,9 @@ Structure _APP
 	renderTarget.ID2D1HwndRenderTarget
 	brush1.ID2D1SolidColorBrush
 	brush2.ID2D1SolidColorBrush
-	strokeStyle.ID2D1StrokeStyle 
+	strokeStyle.ID2D1StrokeStyle
+	dWriteFactory.IDWriteFactory
+	txtFormat.IDWriteTextFormat
 	oldProc.i
 EndStructure
 Global._APP app
@@ -32,9 +34,18 @@ Procedure app_release()
 	If app\d2dFactory
 		app\d2dFactory\Release() : app\d2dFactory = 0
 	EndIf
+	
 	If app\strokeStyle
 		app\strokeStyle\Release() : app\strokeStyle = 0
 	EndIf
+	
+	If app\dWriteFactory
+		app\dWriteFactory\Release() : app\dWriteFactory = 0
+	EndIf
+	
+	If app\txtFormat
+		app\txtFormat\Release() : app\txtFormat = 0
+	EndIf 
 	
 	app_discardDeviceResources()
 EndProcedure	
@@ -47,8 +58,8 @@ Procedure app_createDeviceIndependentResources()
 	fOpts\DebugLevel = #D2D1_DEBUG_LEVEL_NONE
 	hr = D2D1CreateFactory_(#D2D1_FACTORY_TYPE_SINGLE_THREADED, ?IID_ID2D1Factory, @fOpts, @app\d2dFactory)
 	
-	;Create stroke style
 	If hr = #S_OK
+		;Stroke style
 		props\startCap = #D2D1_CAP_STYLE_FLAT
 		props\endCap = #D2D1_CAP_STYLE_FLAT
 		props\dashCap = #D2D1_CAP_STYLE_FLAT
@@ -57,6 +68,18 @@ Procedure app_createDeviceIndependentResources()
 		props\dashStyle = #D2D1_DASH_STYLE_SOLID
 		props\dashOffset = 0.0
 		hr = app\d2dFactory\CreateStrokeStyle(@props, 0, 0, @app\strokeStyle)
+	EndIf
+	
+	hr = DWriteCreateFactory_(#DWRITE_FACTORY_TYPE_SHARED, ?IID_IDWriteFactory, @app\dWriteFactory)
+	If hr = #S_OK
+		;Text format
+		hr = app\dWriteFactory\CreateTextFormat("Segoe UI Emoji", #Null, #DWRITE_FONT_WEIGHT_REGULAR, 
+			#DWRITE_FONT_STYLE_NORMAL, #DWRITE_FONT_STRETCH_NORMAL, 18.0,
+			"en-us", @app\txtFormat)
+		If hr = #S_OK
+			app\txtFormat\SetTextAlignment(#DWRITE_TEXT_ALIGNMENT_CENTER)
+			app\txtFormat\SetParagraphAlignment(#DWRITE_PARAGRAPH_ALIGNMENT_CENTER)
+		EndIf 
 	EndIf
 	
 	ProcedureReturn hr 
@@ -99,18 +122,10 @@ Procedure app_createDeviceResources()
 			;Brushes
 			bProp\opacity = 1.0
 			
-			;Identity matrix
-			bProp\transform\m11 = 1.0
-			bProp\transform\m12 = 0.0
-			bProp\transform\m21 = 0.0
-			bProp\transform\m22 = 1.0
-			bProp\transform\dx = 0.0
-			bProp\transform\dy = 0.0
-			
 			color\r = 1.0 : color\g = 0.0 : color\b = 0.0 : color\a = 1.0
 			app\renderTarget\CreateSolidColorBrush(@color, @bProp, @app\brush1)
 			
-			color\r = 0.0 : color\g = 1.0 : color\b = 0.0 : color\a = 1.0
+			color\r = 0.0 : color\g = 0.0 : color\b = 1.0 : color\a = 1.0
 			app\renderTarget\CreateSolidColorBrush(@color, @bProp, @app\brush2)
 		EndIf 
 	EndIf
@@ -137,6 +152,7 @@ Procedure app_onRender()
 	Protected.D2D1_SIZE_F rtSize
 	Protected.D2D1_RECT_F rcF1, rcF2
 	Protected.D2D1_POINT_2F pt1, pt2
+	Protected.s txt
 	
 	hr = #S_OK
 	
@@ -177,12 +193,16 @@ Procedure app_onRender()
 		rcF1\bottom = (rtSize\height / 2) + 50.0
     
 		;Rectangles
-    rcF2\left = (rtSize\width / 2) - 100.0
-    rcF2\top = (rtSize\height / 2) - 100.0
-    rcF2\right = (rtSize\width / 2) + 100.0
-    rcF2\bottom = (rtSize\height / 2) + 100.0
+		rcF2\left = (rtSize\width / 2) - 100.0
+		rcF2\top = (rtSize\height / 2) - 100.0
+		rcF2\right = (rtSize\width / 2) + 100.0
+		rcF2\bottom = (rtSize\height / 2) + 100.0
 	
 		app\renderTarget\FillRectangle(@rcF1, app\brush1)
+		
+		txt = "Hello World! " + #CRLF$ + "😀 😬 😁 😂 😃 😄 😅 😆" 
+		app\renderTarget\DrawText(txt, Len(txt), app\txtFormat, @rcF2, app\brush2, #D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT, #DWRITE_MEASURING_MODE_NATURAL)
+		
 		app\renderTarget\DrawRectangle(@rcF2, app\brush2, 2.0, app\strokeStyle)
 		hr = app\renderTarget\EndDraw(@tag1, @tag2)
 	EndIf

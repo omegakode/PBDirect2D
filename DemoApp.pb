@@ -1,6 +1,8 @@
 ﻿IncludeFile "PBDirect2D.pb"
 
 ;https://learn.microsoft.com/en-us/windows/win32/direct2d/direct2d-quickstart
+;https://learn.microsoft.com/en-us/windows/win32/direct2d/direct2d-and-directwrite
+;https://learn.microsoft.com/en-us/windows/win32/wic/-wic-bitmapsources-howto-drawusingd2d
 
 EnableExplicit
 
@@ -14,19 +16,53 @@ Structure _APP
 	strokeStyle.ID2D1StrokeStyle
 	dWriteFactory.IDWriteFactory
 	txtFormat.IDWriteTextFormat
+	imgFactory.IWICImagingFactory
+	d2dBmp.ID2D1Bitmap
 	oldProc.i
 EndStructure
 Global._APP app
+
+Procedure.f minF(a.f, b.f)
+	If a < b
+		ProcedureReturn a
+		
+	Else
+		ProcedureReturn b
+	EndIf 
+EndProcedure
+
+Procedure imgFit(srcWidth.f, srcHeight.f, maxWidth.f, maxHeight.f, *sz.D2D1_SIZE_F)
+	Protected.f ratio
+	
+	If *sz = 0 : ProcedureReturn : EndIf
+	
+	ratio = minF(maxWidth / srcWidth, maxHeight / srcHeight)
+	*sz\width = srcWidth * ratio
+	*sz\height = srcHeight * ratio
+EndProcedure
+
+Procedure imgCenter(srcWidth.f, srcHeight.f, maxWidth.f, maxHeight.f, *pt.D2D1_POINT_2F)
+	If *pt = 0 : ProcedureReturn : EndIf
+	
+	*pt\x = (maxWidth - srcWidth) / 2
+	*pt\y = (maxHeight - srcHeight) / 2
+EndProcedure
 
 Procedure app_discardDeviceResources()	
 	If app\renderTarget
 		app\renderTarget\Release() : app\renderTarget = 0
 	EndIf
+	
 	If app\brush1
 		app\brush1\Release() : app\brush1 = 0
 	EndIf
+	
 	If app\brush2
 		app\brush2\Release() : app\brush2 = 0
+	EndIf
+	
+	If app\d2dBmp
+		app\d2dBmp\Release() : app\d2dBmp = 0
 	EndIf
 EndProcedure
 
@@ -45,6 +81,10 @@ Procedure app_release()
 	
 	If app\txtFormat
 		app\txtFormat\Release() : app\txtFormat = 0
+	EndIf 
+	
+	If app\imgFactory
+		app\imgFactory\Release() : app\imgFactory = 0
 	EndIf 
 	
 	app_discardDeviceResources()
@@ -76,13 +116,16 @@ Procedure app_createDeviceIndependentResources()
 		hr = app\dWriteFactory\CreateTextFormat("Segoe UI Emoji", #Null, #DWRITE_FONT_WEIGHT_REGULAR, 
 			#DWRITE_FONT_STYLE_NORMAL, #DWRITE_FONT_STRETCH_NORMAL, 18.0,
 			"en-us", @app\txtFormat)
+			
 		If hr = #S_OK
 			app\txtFormat\SetTextAlignment(#DWRITE_TEXT_ALIGNMENT_CENTER)
 			app\txtFormat\SetParagraphAlignment(#DWRITE_PARAGRAPH_ALIGNMENT_CENTER)
 		EndIf 
 	EndIf
-	
-	ProcedureReturn hr 
+		
+	hr = CoCreateInstance_(?CLSID_WICImagingFactory, #Null, #CLSCTX_INPROC_SERVER, ?IID_IWICImagingFactory, @app\imgFactory)
+
+	ProcedureReturn hr
 EndProcedure
 
 Procedure app_createDeviceResources()
@@ -94,7 +137,10 @@ Procedure app_createDeviceResources()
 	Protected.D2D1_HWND_RENDER_TARGET_PROPERTIES  hwndProps
 	Protected.D2D1_COLOR_F color
 	Protected.D2D1_BRUSH_PROPERTIES bProp
-		
+	Protected.IWICFormatConverter wicBmp
+	Protected.IWICBitmapDecoder imgDecoder
+	Protected.IWICBitmapFrameDecode pFrame
+	
 	hr = #S_OK
 	
 	If app\renderTarget = 0
@@ -122,11 +168,27 @@ Procedure app_createDeviceResources()
 			;Brushes
 			bProp\opacity = 1.0
 			
-			color\r = 1.0 : color\g = 0.0 : color\b = 0.0 : color\a = 1.0
+			color\r = 0 : color\g = 162/255 : color\b = 232/255 : color\a = 1.0
 			app\renderTarget\CreateSolidColorBrush(@color, @bProp, @app\brush1)
 			
-			color\r = 0.0 : color\g = 0.0 : color\b = 1.0 : color\a = 1.0
+			color\r = 0.0 : color\g = 1.0 : color\b = 0.0 : color\a = 1.0
 			app\renderTarget\CreateSolidColorBrush(@color, @bProp, @app\brush2)
+			
+			;Bitmap
+			If app\imgFactory
+				If app\imgFactory\CreateDecoderFromFilename("assets\pic1.jpg", #Null, #GENERIC_READ, #WICDecodeMetadataCacheOnDemand, @imgDecoder) = #S_OK
+					If imgDecoder\GetFrame(0, @pFrame) = #S_OK
+						If app\imgFactory\CreateFormatConverter(@wicBmp) = #S_OK
+							If wicBmp\Initialize(pFrame, ?GUID_WICPixelFormat32bppPBGRA, #WICBitmapDitherTypeNone, #Null, 0.0, #WICBitmapPaletteTypeCustom) = #S_OK
+								app\renderTarget\CreateBitmapFromWicBitmap(wicBmp, #Null, @app\d2dBmp)
+							EndIf
+							wicBmp\Release()
+						EndIf
+						pFrame\Release()
+					EndIf 
+					imgDecoder\Release()
+				EndIf
+			EndIf
 		EndIf 
 	EndIf
 	
@@ -149,9 +211,9 @@ Procedure app_onRender()
 	Protected.D2D1_MATRIX_3X2_F im
 	Protected.D2D1_COLOR_F color
 	Protected.q tag1, tag2
-	Protected.D2D1_SIZE_F rtSize
-	Protected.D2D1_RECT_F rcF1, rcF2
-	Protected.D2D1_POINT_2F pt1, pt2
+	Protected.D2D1_SIZE_F rtSize, bmpSize
+	Protected.D2D1_RECT_F rcF1, rcF2, bmpRc
+	Protected.D2D1_POINT_2F pt1, pt2, bmpPos
 	Protected.s txt
 	
 	hr = #S_OK
@@ -197,13 +259,27 @@ Procedure app_onRender()
 		rcF2\top = (rtSize\height / 2) - 100.0
 		rcF2\right = (rtSize\width / 2) + 100.0
 		rcF2\bottom = (rtSize\height / 2) + 100.0
+			
+		;Image
+		If app\d2dBmp
+			app\d2dBmp\GetSize(@bmpSize)
+			imgFit(bmpSize\width, bmpSize\height, 200, 200, @bmpSize)
+			imgCenter(bmpSize\width, bmpSize\height, 200, 200, @bmpPos)
 	
-		app\renderTarget\FillRectangle(@rcF1, app\brush1)
+			bmpRc\left = rcF2\left + bmpPos\x
+			bmpRc\top = rcF2\top + bmpPos\y
+			bmpRc\right = bmpRc\left + bmpSize\width
+			bmpRc\bottom = bmpRc\top + bmpSize\height
+			app\renderTarget\DrawBitmap(app\d2dBmp, @bmpRc, 1.0, #D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, 0)
+		EndIf
 		
+		;Text
 		txt = "Hello World! " + #CRLF$ + "😀 😬 😁 😂 😃 😄 😅 😆" 
 		app\renderTarget\DrawText(txt, Len(txt), app\txtFormat, @rcF2, app\brush2, #D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT, #DWRITE_MEASURING_MODE_NATURAL)
 		
+		;Border
 		app\renderTarget\DrawRectangle(@rcF2, app\brush2, 2.0, app\strokeStyle)
+		
 		hr = app\renderTarget\EndDraw(@tag1, @tag2)
 	EndIf
 	
@@ -215,9 +291,7 @@ Procedure app_onRender()
 	ProcedureReturn hr
 EndProcedure
 
-Procedure win_proc(hwnd.i, msg.l, wparam.i, lparam.i)
-	Protected.i result
-	
+Procedure win_proc(hwnd.i, msg.l, wparam.i, lparam.i)	
 	Select msg
 		Case #WM_SIZE
 			app_onSize(PeekW(@lparam), PeekW(@lparam + SizeOf(Word)))

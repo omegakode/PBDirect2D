@@ -265,7 +265,7 @@ Procedure app_onRender()
 			app\d2dBmp\GetSize(@bmpSize)
 			imgFit(bmpSize\width, bmpSize\height, 200, 200, @bmpSize)
 			imgCenter(bmpSize\width, bmpSize\height, 200, 200, @bmpPos)
-	
+			
 			bmpRc\left = rcF2\left + bmpPos\x
 			bmpRc\top = rcF2\top + bmpPos\y
 			bmpRc\right = bmpRc\left + bmpSize\width

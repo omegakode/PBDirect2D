@@ -3,6 +3,7 @@
 ;https://learn.microsoft.com/en-us/windows/win32/direct2d/direct2d-quickstart
 ;https://learn.microsoft.com/en-us/windows/win32/direct2d/direct2d-and-directwrite
 ;https://learn.microsoft.com/en-us/windows/win32/wic/-wic-bitmapsources-howto-drawusingd2d
+;https://github.com/microsoft/Windows-universal-samples/tree/main/Samples/D2DSvgImage
 
 EnableExplicit
 
@@ -18,6 +19,7 @@ Structure _APP
 	txtFormat.IDWriteTextFormat
 	imgFactory.IWICImagingFactory
 	d2dBmp.ID2D1Bitmap
+	svgDoc.IUnknown
 	oldProc.i
 EndStructure
 Global._APP app
@@ -64,6 +66,10 @@ Procedure app_discardDeviceResources()
 	If app\d2dBmp
 		app\d2dBmp\Release() : app\d2dBmp = 0
 	EndIf
+	
+	If app\svgDoc
+		app\svgDoc\Release() : app\svgDoc = 0
+	EndIf 
 EndProcedure
 
 Procedure app_release()
@@ -140,6 +146,8 @@ Procedure app_createDeviceResources()
 	Protected.IWICFormatConverter wicBmp
 	Protected.IWICBitmapDecoder imgDecoder
 	Protected.IWICBitmapFrameDecode pFrame
+	Protected.ID2D1DeviceContext5 dc5
+	Protected.IStream svgStream
 	
 	hr = #S_OK
 	
@@ -164,7 +172,7 @@ Procedure app_createDeviceResources()
 		hwndProps\presentOptions = #D2D1_PRESENT_OPTIONS_NONE
 		
 		hr = app\d2dFactory\CreateHwndRenderTarget(@props, @hwndProps, @app\renderTarget)
-		If hr = #S_OK
+		If hr = #S_OK		
 			;Brushes
 			bProp\opacity = 1.0
 			
@@ -189,6 +197,15 @@ Procedure app_createDeviceResources()
 					imgDecoder\Release()
 				EndIf
 			EndIf
+			
+			;Svg
+			If app\renderTarget\QueryInterface(?IID_ID2D1DeviceContext5, @dc5) = #S_OK
+				If SHCreateStreamOnFile_("assets\drawing.svg", #STGM_READ, @svgStream) = #S_OK
+					dc5\CreateSvgDocument(svgStream, D2D1_SizeF(100, 100), @app\svgDoc)
+					svgStream\Release()
+				EndIf 
+				dc5\Release()
+			EndIf 
 		EndIf 
 	EndIf
 	
@@ -208,30 +225,26 @@ EndProcedure
 
 Procedure app_onRender()
 	Protected.l hr, x, y, width, height
-	Protected.D2D1_MATRIX_3X2_F im
+	Protected.D2D1_MATRIX_3X2_F im, tm1, tm2, tm3
 	Protected.D2D1_COLOR_F color
 	Protected.q tag1, tag2
-	Protected.D2D1_SIZE_F rtSize, bmpSize
+	Protected.D2D1_SIZE_F rtSize, bmpSize, t
 	Protected.D2D1_RECT_F rcF1, rcF2, bmpRc
 	Protected.D2D1_POINT_2F pt1, pt2, bmpPos
 	Protected.s txt
-	
+	Protected.ID2D1DeviceContext5 dc5
+
 	hr = #S_OK
 	
 	hr = app_createDeviceResources()
 	If hr = #S_OK	
 		app\renderTarget\BeginDraw()
 		
-		;Identity matrix
-		im\m11 = 1.0
-		im\m12 = 0.0
-		im\m21 = 0.0
-		im\m22 = 1.0
-		im\dx = 0.0
-		im\dy = 0.0
-		
-		app\renderTarget\SetTransform(@im)
-		
+		D2D1_Matrix3x2F_Identity(@im)
+		D2D1_Matrix3x2F_Identity(@tm1)
+		D2D1_Matrix3x2F_Identity(@tm2)
+		D2D1_Matrix3x2F_Identity(@tm3)
+
 		color\r = 1.0 : color\g = 1.0 : color\b = 1.0 : color\a = 1.0
 		app\renderTarget\Clear(@color)
 		app\renderTarget\GetSize(@rtSize)
@@ -272,6 +285,19 @@ Procedure app_onRender()
 			bmpRc\bottom = bmpRc\top + bmpSize\height
 			app\renderTarget\DrawBitmap(app\d2dBmp, @bmpRc, 1.0, #D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, 0)
 		EndIf
+		
+		;SVG
+		If app\svgDoc And  app\renderTarget\QueryInterface(?IID_ID2D1DeviceContext5, @dc5) = #S_OK
+			;DrawSvgDocument() always draws at 0,0 scale and translate
+			D2D1_Matrix3x2F_Scale(@tm2, 1.5, 1.5, 0, 0)
+			D2D1_Matrix3x2F_Translation(@tm1, 0, rcF2\top)
+			D2D1_Matrix3x2F_Multiply(@tm2, @tm1, @tm3)
+			
+			app\renderTarget\SetTransform(@tm3)
+			dc5\DrawSvgDocument(app\svgDoc)
+			app\renderTarget\SetTransform(@im)
+			dc5\Release()
+		EndIf 
 		
 		;Text
 		txt = "Hello World! " + #CRLF$ + "😀 😬 😁 😂 😃 😄 😅 😆" 

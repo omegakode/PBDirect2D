@@ -1022,6 +1022,13 @@ Interface IDWriteLocalFontFileLoader Extends IDWriteFontFileLoader
 EndInterface 
 
 ;- IMPORT
-Import "Dwrite.lib"
+CompilerIf #PB_Compiler_Processor = #PB_Processor_x64
+Import "lib\x64\Dwrite.lib"
 	DWriteCreateFactory_(factoryType.l, *iid.IID, factory.i) As "DWriteCreateFactory"
 EndImport
+CompilerElse
+
+Import "lib\x86\Dwrite.lib"
+	DWriteCreateFactory_(factoryType.l, *iid.IID, factory.i) As "_DWriteCreateFactory"
+EndImport
+CompilerEndIf

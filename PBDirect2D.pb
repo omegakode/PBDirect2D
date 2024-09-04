@@ -1,6 +1,7 @@
 ﻿;PBDirect2D.pb
 
 XIncludeFile "windows\Guiddef.pbi"
+XIncludeFile "windows\d2d1effects_2.pbi"
 XIncludeFile "windows\d2d1.pbi"
 XIncludeFile "windows\d2d1_1.pbi"
 XIncludeFile "windows\d2d1_2.pbi"

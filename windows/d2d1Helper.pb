@@ -41,10 +41,6 @@ Procedure.l D2D1_Matrix3x2F_Translation(*m.D2D1_MATRIX_3X2_F, x.f, y.f)
 EndProcedure
 
 
-; scale._11 = size.width; scale._12 = 0.0;
-; scale._21 = 0.0; scale._22 = size.height;
-; scale._31 = center.x - size.width * center.x;
-; scale._32 = center.y - size.height * center.y;
 Procedure.l D2D1_Matrix3x2F_Scale(*m.D2D1_MATRIX_3X2_F, sw.f, sh.f, cx.f, cy.f)
 	If *m = 0 : ProcedureReturn 0 : EndIf
 	

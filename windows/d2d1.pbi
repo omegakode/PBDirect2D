@@ -1081,12 +1081,14 @@ Interface ID2D1GdiInteropRenderTarget Extends IUnknown
 EndInterface 
 
 ;- IMPORT
-Import "d2d1.lib"
+
+CompilerIf #PB_Compiler_Processor = #PB_Processor_x64
+Import "lib\x64\d2d1.lib"
+	D2D1CreateFactory_(factory_type.l, *iid.IID, *factory_options.D2D1_FACTORY_OPTIONS, factory.i) As "D2D1CreateFactory"
 	D2D1ComputeMaximumScaleFactor_.f(*matrix.D2D1_MATRIX_3X2_F) As "D2D1ComputeMaximumScaleFactor"
 	D2D1ConvertColorSpace_(sourceColorSpace.l, destinationColorSpace.l, *color.D2D1_COLOR_F) As "D2D1ConvertColorSpace"
 	D2D1CreateDevice_(dxgiDevice.i, creationProperties.i, d2dDevice.i) As "D2D1CreateDevice" 
 	D2D1CreateDeviceContext_(dxgiSurface.i, creationProperties.i, d2dDeviceContext.i) As "D2D1CreateDeviceContext"
-	D2D1CreateFactory_(factory_type.l, *iid.IID, *factory_options.D2D1_FACTORY_OPTIONS, factory.i) As "D2D1CreateFactory"
 	D2D1GetGradientMeshInteriorPointsFromCoonsPatch_(pPoint0.i, pPoint1.i, pPoint2.i, pPoint3.i, pPoint4.i, pPoint5.i, pPoint6.i, pPoint7.i, pPoint8.i, pPoint9.i, pPoint10.i, pPoint11.i, pTensorPoint11.i, pTensorPoint12.i, pTensorPoint21.i, pTensorPoint22.i) As "D2D1GetGradientMeshInteriorPointsFromCoonsPatch"
 	D2D1InvertMatrix_(*matrix.D2D1_MATRIX_3X2_F) As "D2D1InvertMatrix"
 	D2D1IsMatrixInvertible_(*matrix.D2D1_MATRIX_3X2_F) As "D2D1IsMatrixInvertible"
@@ -1096,4 +1098,22 @@ Import "d2d1.lib"
 	D2D1Tan_.f(angle.f) As "D2D1Tan"
 	D2D1Vec3Length_.f(x.f, y.f, z.f) As "D2D1Vec3Length"
 EndImport
+
+CompilerElse
+Import "lib\x86\d2d1.lib"
+	D2D1CreateFactory_(factory_type.l, *iid.IID, *factory_options.D2D1_FACTORY_OPTIONS, factory.i) As "_D2D1CreateFactory"
+	D2D1ComputeMaximumScaleFactor_.f(*matrix.D2D1_MATRIX_3X2_F) As "_D2D1ComputeMaximumScaleFactor"
+	D2D1ConvertColorSpace_(sourceColorSpace.l, destinationColorSpace.l, *color.D2D1_COLOR_F) As "_D2D1ConvertColorSpace"
+	D2D1CreateDevice_(dxgiDevice.i, creationProperties.i, d2dDevice.i) As "_D2D1CreateDevice" 
+	D2D1CreateDeviceContext_(dxgiSurface.i, creationProperties.i, d2dDeviceContext.i) As "_D2D1CreateDeviceContext"
+	D2D1GetGradientMeshInteriorPointsFromCoonsPatch_(pPoint0.i, pPoint1.i, pPoint2.i, pPoint3.i, pPoint4.i, pPoint5.i, pPoint6.i, pPoint7.i, pPoint8.i, pPoint9.i, pPoint10.i, pPoint11.i, pTensorPoint11.i, pTensorPoint12.i, pTensorPoint21.i, pTensorPoint22.i) As "_D2D1GetGradientMeshInteriorPointsFromCoonsPatch"
+	D2D1InvertMatrix_(*matrix.D2D1_MATRIX_3X2_F) As "_D2D1InvertMatrix"
+	D2D1IsMatrixInvertible_(*matrix.D2D1_MATRIX_3X2_F) As "_D2D1IsMatrixInvertible"
+	D2D1MakeRotateMatrix_(angle.f, *center.D2D1_POINT_2F, *matrix.D2D1_MATRIX_3X2_F) As "_D2D1MakeRotateMatrix"
+	D2D1MakeSkewMatrix_(angleX.f, angleY.f, *center.D2D1_POINT_2F, *matrix.D2D1_MATRIX_3X2_F) As "_D2D1MakeSkewMatrix"
+	D2D1SinCos_(angle.f, s.i, c.i) As "_D2D1SinCos"
+	D2D1Tan_.f(angle.f) As "_D2D1Tan"
+	D2D1Vec3Length_.f(x.f, y.f, z.f) As "_D2D1Vec3Length"
+EndImport
+CompilerEndIf
 

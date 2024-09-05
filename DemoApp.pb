@@ -8,9 +8,15 @@
 
 EnableExplicit
 
+;- Enum MENU_ID
+Enumeration
+	#MENU_ID_CHANGE_SVG_COLOR
+EndEnumeration
+
 ;- _APP
 Structure _APP
 	win.i
+	menu.i
 	d2dFactory.ID2D1Factory
 	renderTarget.ID2D1HwndRenderTarget
 	brush1.ID2D1SolidColorBrush
@@ -20,7 +26,7 @@ Structure _APP
 	txtFormat.IDWriteTextFormat
 	imgFactory.IWICImagingFactory
 	d2dBmp.ID2D1Bitmap
-	svgDoc.IUnknown
+	svgDoc.ID2D1SvgDocument
 	scaleEffect.ID2D1Effect
 	grayScaleEffect.ID2D1Effect
 
@@ -399,18 +405,40 @@ Procedure win_proc(hwnd.i, msg.l, wparam.i, lparam.i)
 	ProcedureReturn CallWindowProc_(app\oldProc, hwnd, msg, wparam, lparam)
 EndProcedure
 
+Procedure changeSVGColor()
+	Protected.ID2D1SvgElement head
+	Protected.ID2D1SvgPaint paint
+	Protected.D2D1_COLOR_F c
+
+	If app\svgDoc\FindElementById("head", @head) = #S_OK
+		If head\GetAttributeValue("fill", ?IID_ID2D1SvgPaint, @paint) = #S_OK
+			If paint\GetPaintType() = #D2D1_SVG_PAINT_TYPE_COLOR
+				c\r = Random(255) / 255 : c\g = Random(255) / 255 : c\b = Random(255) / 255 : c\a = 1.0
+				paint\SetColor(@c)
+				InvalidateRect_(WindowID(app\win), 0, #True)
+			EndIf
+			paint\Release()
+		EndIf
+		head\Release()
+	EndIf
+EndProcedure
+
 Procedure main()
 	Protected.l ev
-		
-
-	app\win = OpenWindow(#PB_Any, 10, 10, 600, 400, "Direct2D", #PB_Window_MaximizeGadget | #PB_Window_MinimizeGadget | 
-		#PB_Window_SizeGadget)
-	app\oldProc = SetWindowLongPtr_(WindowID(app\win), #GWLP_WNDPROC, @win_proc())
 	
 	If app_createDeviceIndependentResources() <> #S_OK
 		MessageRequester("Error" , "Failed to initialize Direct2D")
 		End
 	EndIf
+		
+	app\win = OpenWindow(#PB_Any, 10, 10, 600, 400, "Direct2D", #PB_Window_MaximizeGadget | #PB_Window_MinimizeGadget | 
+		#PB_Window_SizeGadget)
+	app\oldProc = SetWindowLongPtr_(WindowID(app\win), #GWLP_WNDPROC, @win_proc())
+	
+	app\menu = CreateMenu(#PB_Any, WindowID(app\win))
+	MenuTitle("Test")
+	MenuItem(#MENU_ID_CHANGE_SVG_COLOR, "Change SVG Color")
+	BindMenuEvent(app\menu, #MENU_ID_CHANGE_SVG_COLOR, @changeSVGColor())
 
 	Repeat
 		ev = WaitWindowEvent()

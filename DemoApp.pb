@@ -410,6 +410,8 @@ Procedure changeSVGColor()
 	Protected.ID2D1SvgPaint paint
 	Protected.D2D1_COLOR_F c
 
+	If app\svgDoc = 0 : ProcedureReturn : EndIf
+	
 	If app\svgDoc\FindElementById("head", @head) = #S_OK
 		If head\GetAttributeValue("fill", ?IID_ID2D1SvgPaint, @paint) = #S_OK
 			If paint\GetPaintType() = #D2D1_SVG_PAINT_TYPE_COLOR

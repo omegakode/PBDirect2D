@@ -152,7 +152,6 @@ Procedure app_createDeviceIndependentResources()
 	ProcedureReturn hr
 EndProcedure
 
-#D2D1_SCALE_PROP_SCALE = 0
 Procedure app_createDeviceResources()
 	Protected.RECT rc
 	Protected.l hr

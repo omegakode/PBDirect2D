@@ -179,8 +179,11 @@ Procedure app_createDeviceResources()
 		
 		;Create a Direct2D render target.
 		props\type = #D2D1_RENDER_TARGET_TYPE_DEFAULT
-		props\pixelFormat\format = #DXGI_FORMAT_UNKNOWN
-		props\pixelFormat\alphaMode = #D2D1_ALPHA_MODE_UNKNOWN
+		
+		;Enable alpha channel
+		props\pixelFormat\format = #DXGI_FORMAT_B8G8R8A8_UNORM
+		props\pixelFormat\alphaMode = #D2D1_ALPHA_MODE_PREMULTIPLIED
+		
 		props\dpiX = 0.0
 		props\dpiY = 0.0
 		props\usage = #D2D1_RENDER_TARGET_USAGE_NONE

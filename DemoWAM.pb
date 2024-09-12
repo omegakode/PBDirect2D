@@ -18,6 +18,7 @@ EndStructure
 ;- _ANIM
 Structure _ANIM
 	Array dots._ANIM_DOT(#ANIM_DOTS_COUNT - 1)
+	opacity.IUIAnimationVariable
 EndStructure
 
 ;- _APP
@@ -268,8 +269,11 @@ Procedure app_createDeviceResources()
 		
 		;Create a Direct2D render target.
 		rtProps\type = #D2D1_RENDER_TARGET_TYPE_DEFAULT 
-		rtProps\pixelFormat\format = #DXGI_FORMAT_UNKNOWN
-		rtProps\pixelFormat\alphaMode = #D2D1_ALPHA_MODE_UNKNOWN
+		
+		;Enable alpha channel
+		rtProps\pixelFormat\format = #DXGI_FORMAT_B8G8R8A8_UNORM
+		rtProps\pixelFormat\alphaMode = #D2D1_ALPHA_MODE_PREMULTIPLIED
+		
 		rtProps\dpiX = 0.0
 		rtProps\dpiY = 0.0
 		rtProps\usage = #D2D1_RENDER_TARGET_USAGE_NONE
@@ -288,7 +292,7 @@ Procedure app_createDeviceResources()
 			color\r = 0 : color\g = 162/255 : color\b = 232/255 : color\a = 1.0
 			app\renderTarget\CreateSolidColorBrush(@color, @bProp, @app\rectBrush)
 			
-			color\r = 0.0 : color\g = 1.0 : color\b = 0.0 : color\a = 1.0
+			color\r = 0.0 : color\g = 1.0 : color\b = 0.0 : color\a = 0.5
 			app\renderTarget\CreateSolidColorBrush(@color, @bProp, @app\dotBrush)
 		EndIf
 	EndIf 
@@ -314,7 +318,7 @@ Procedure app_initWAM()
 	Protected.l i, hr
 	Protected.d sinDuration
 	Protected.IUIAnimationManagerEventHandler animEventHandler
-	Protected.IUIAnimationTransition transYPos
+	Protected.IUIAnimationTransition transYPos, transOpacity
 	Protected.IUIAnimationStoryboardEventHandler storyBoardEvHandler
 	Protected.i  keyFrame1, keyFrame2, endKeyFrame
 	
@@ -342,6 +346,14 @@ Procedure app_initWAM()
 	
 	app\storyBoard\RepeatBetweenKeyframes(#UI_ANIMATION_KEYFRAME_STORYBOARD_START, endKeyFrame, #UI_ANIMATION_REPEAT_INDEFINITELY)
 
+	app\animManager\CreateAnimationVariable(1.0, @app\anim\opacity)
+	app\anim\opacity\SetLowerBound(0.0)
+	app\anim\opacity\SetUpperBound(1.0)
+	app\animTransitionLib\CreateSinusoidalTransitionFromRange(sinDuration, 0.0, 1.0, 3, #UI_ANIMATION_SLOPE_INCREASING, @transOpacity)
+	app\storyBoard\AddTransition(app\anim\opacity, transOpacity)
+	app\anim\opacity\Release()
+	transOpacity\Release()
+	
 	For i = 0 To #ANIM_DOTS_COUNT -1
 		;Create variables
 		app\animManager\CreateAnimationVariable(0.0, @app\anim\dots(i)\yPos)
@@ -361,6 +373,7 @@ Procedure app_initWAM()
 			app\storyBoard\AddTransition(app\anim\dots(i)\yPos, transYPos)
 		EndIf 
 		
+		app\anim\dots(i)\yPos\Release()
 		transYPos\Release()
 	Next 
 EndProcedure
@@ -372,10 +385,6 @@ Procedure app_ReleaseWAM()
 	If app\animTimer : app\animTimer\Release() : EndIf	
 	If app\animTransitionLib : app\animTransitionLib\Release() : EndIf	
 	If app\storyBoard : app\storyBoard\Release() : EndIf	
-	
-	For i = 0 To #ANIM_DOTS_COUNT - 1
-		app\anim\dots(i)\yPos\Release()
-	Next 
 EndProcedure
 
 Procedure app_init()
@@ -420,7 +429,7 @@ Procedure app_render()
 	Protected.D2D1_ELLIPSE  dot
 	Protected.f dotRectSize
 	Protected.s text
-	Protected.d yPos
+	Protected.d yPos, opacity
 	
 	hr = #S_OK
 		
@@ -442,17 +451,18 @@ Procedure app_render()
 		dotsRect\rect\bottom = dotsRect\rect\top + dotRectSize 
 		dotsRect\radiusX = 20.0
 		dotsRect\radiusY = 20.0
+		
+		app\anim\opacity\GetValue(@opacity)
+		app\rectBrush\SetOpacity(opacity)
  		app\renderTarget\FillRoundedRectangle(@dotsRect, app\rectBrush)
-
-		dot\point\x = (rtSize\width / 2) - 40
-		dot\radiusX = 10.0
-		dot\radiusY = 10.0
 
 		;Dots
 		app\storyBoard\GetStatus(@status)
+		dot\point\x = (rtSize\width / 2) - 40
+		dot\radiusX = 10.0
+		dot\radiusY = 10.0
 		For i = 0 To #ANIM_DOTS_COUNT - 1
 			app\anim\dots(i)\yPos\GetValue(@yPos)
-			
 			dot\point\y = (rtSize\height / 2) + yPos
 			app\renderTarget\FillEllipse(@dot, app\dotBrush)
 			dot\point\x + 40.0
@@ -524,7 +534,7 @@ Procedure main()
 		End
 	EndIf
 		
-	app\win = OpenWindow(#PB_Any, 10, 10, 600, 400, "DemoAnim2", #PB_Window_MaximizeGadget | #PB_Window_MinimizeGadget | #PB_Window_SizeGadget)
+	app\win = OpenWindow(#PB_Any, 10, 10, 600, 400, "DemoWAM", #PB_Window_MaximizeGadget | #PB_Window_MinimizeGadget | #PB_Window_SizeGadget)
 	app\menu = CreateMenu(#PB_Any, WindowID(app\win))
 	AddKeyboardShortcut(app\win, #PB_Shortcut_F1, #MENU_ID_START_STOP)
 
